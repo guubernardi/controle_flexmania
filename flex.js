@@ -1,318 +1,467 @@
-// =================== Config ===================
-const BASE_FRETE = 8.00;                  // R$ por pedido
-const PAGA_BASE_AO_COLETAR = true;        // paga base só quando COLETADO
-
-// =================== Mock inicial (exemplo) ===================
-let registros = [
+// Variáveis globais
+const registros = [
   {
     id: 1,
-    data: "2025-09-10",
+    data: "2025-01-10",
     loja: "Shopee Adob",
     pedido: "122121",
     nota: "2000",
-    valor_produto: 299.90,
+    valor_produto: 299.9,
     estorno_merc: 0,
     estorno_frete: 0,
     status_pedido: "A COLETAR",
     situacao: "EM ABERTO",
-    obs: "-"
-  }
-];
+    obs: "-",
+  },
+]
 
-let registrosFiltrados = [];
-const selectedIds = new Set(); // seleção em massa
+let selectedIds = new Set()
+let editingObs = null
 
-// =================== Helpers ===================
-const $ = sel => document.getElementById(sel);
+const BASE_FRETE = 8.0
 
-function formatDate(dateStr) {
-  if (!dateStr) return "";
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("pt-BR");
-}
-
+// Funções auxiliares
 function formatCurrency(value) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(Number(value || 0));
+  }).format(value || 0)
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ""
+  const date = new Date(dateStr + "T00:00:00")
+  return date.toLocaleDateString("pt-BR")
 }
 
 function getTodayISO() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
 }
 
 function getFirstDayOfMonth() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}-01`;
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  return `${y}-${m}-01`
 }
 
-function showToast(title, description) {
-  const toast = $("toast");
-  $("toastTitle").textContent = title;
-  $("toastDescription").textContent = description;
-  toast.style.display = "block";
-  setTimeout(() => (toast.style.display = "none"), 3000);
-}
-
-function createStatusBadge(status, type) {
-  const span = document.createElement("span");
-  span.className = "badge";
-  span.textContent = status;
-  if (type === "pedido") {
-    if (status === "COLETADO") span.classList.add("success");
-    else if (status === "A COLETAR") span.classList.add("warning");
-    else if (status === "CANCELADO") span.classList.add("destructive");
-  } else {
-    if (status === "PAGO") span.classList.add("success");
-    else span.classList.add("warning");
-  }
-  return span;
-}
-
-function createEstornoIndicator(estorno) {
-  const s = document.createElement("span");
-  s.className = `estorno-indicator ${estorno ? "yes" : "no"}`;
-  s.textContent = estorno ? "S" : "N";
-  return s;
-}
-
-function escapeHtml(str = "") {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-// =================== Cálculo ===================
-// - COLETADO: 8 - estorno_frete - (estorno_merc? valor_produto : 0), mínimo 0.
-// - CANCELADO: estorno_merc = 1 (não devolveu) => -(valor_produto + 8); estorno_merc = 0 => 0.
-// - A COLETAR: 0 (só paga quando coletado).
 function calcularValor(reg) {
-  const status = reg.status_pedido;
-  const produto = Number(reg.valor_produto || 0);
-  const estFrete = Number(reg.estorno_frete || 0);
-  const estMerc = Number(reg.estorno_merc || 0);
+  const status = reg.status_pedido
+  const produto = Number(reg.valor_produto || 0)
+  const estFrete = Number(reg.estorno_frete || 0)
+  const estMerc = Number(reg.estorno_merc || 0)
 
   if (status === "CANCELADO") {
-    return estMerc ? Number((-(produto + BASE_FRETE)).toFixed(2)) : 0;
+    return estMerc ? Number((-(produto + BASE_FRETE)).toFixed(2)) : 0
   }
 
   if (status === "COLETADO") {
-    let v = BASE_FRETE - estFrete - (estMerc ? produto : 0);
-    if (v < 0) v = 0;
-    return Number(v.toFixed(2));
+    let v = BASE_FRETE - estFrete - (estMerc ? produto : 0)
+    if (v < 0) v = 0
+    return Number(v.toFixed(2))
   }
 
-  return 0; // A COLETAR
+  return 0 // A COLETAR
 }
 
-// =================== Persistência local (array) ===================
+function normalizeString(s = "") {
+  return String(s)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+}
+
 function nextId() {
-  return (registros[0]?.id || 0) + 1;
+  return Math.max(...registros.map((r) => r.id), 0) + 1
 }
 
-function addRegistro(data) {
-  const reg = { id: nextId(), ...data };
-  reg.valor_a_pagar = calcularValor(reg);
-  registros.unshift(reg);
-  return reg;
+// Sistema de notificações
+function showNotification(message, type = "info", title = null) {
+  const container = getOrCreateNotificationContainer()
+
+  const notification = document.createElement("div")
+  notification.className = `notification ${type}`
+
+  const icon = getNotificationIcon(type)
+
+  notification.innerHTML = `
+    <div class="notification-icon">${icon}</div>
+    <div class="notification-content">
+      ${title ? `<div class="notification-title">${title}</div>` : ""}
+      <div class="notification-message">${message}</div>
+    </div>
+    <button class="notification-close" onclick="closeNotification(this)">×</button>
+  `
+
+  container.appendChild(notification)
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      closeNotification(notification.querySelector(".notification-close"))
+    }
+  }, 5000)
 }
 
-function updateRegistro(id, patch) {
-  const idx = registros.findIndex((r) => r.id === id);
-  if (idx === -1) return null;
-  registros[idx] = { ...registros[idx], ...patch };
-  registros[idx].valor_a_pagar = calcularValor(registros[idx]);
-  return registros[idx];
-}
-
-// =================== Form ===================
-const form = $("registroForm");
-const limparBtn = $("limparBtn");
-const atualizarBtn = $("atualizarBtn");
-const exportarBtn = $("exportarBtn");
-
-// Fechamento opcional
-const cancelarNaoEntreguesBtn = $("cancelarNaoEntreguesBtn");
-const diaFechamentoInput = $("diaFechamento");
-
-// Ações em massa
-const selectAll = $("selectAll");
-const pagarSelecionadosBtn = $("pagarSelecionadosBtn");
-const limparSelecaoBtn = $("limparSelecaoBtn");
-
-function initializeForm() {
-  $("data").value = getTodayISO();
-  $("f_ini").value = getFirstDayOfMonth();
-  $("f_fim").value = getTodayISO();
-  $("f_loja").value = "todas";
-  if (diaFechamentoInput && !diaFechamentoInput.value) {
-    diaFechamentoInput.value = getTodayISO();
+function getOrCreateNotificationContainer() {
+  let container = document.getElementById("notification-container")
+  if (!container) {
+    container = document.createElement("div")
+    container.id = "notification-container"
+    container.className = "notification-container"
+    document.body.appendChild(container)
   }
+  return container
+}
+
+function getNotificationIcon(type) {
+  switch (type) {
+    case "success":
+      return "✅"
+    case "error":
+      return "❌"
+    case "warning":
+      return "⚠️"
+    default:
+      return "ℹ️"
+  }
+}
+
+function closeNotification(closeButton) {
+  const notification = closeButton.closest(".notification")
+  notification.classList.add("removing")
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification)
+    }
+  }, 300)
+}
+
+// Inicializa o formulário com a data de hoje
+function initializeForm() {
+  document.getElementById("data").value = getTodayISO()
+  document.getElementById("f_ini").value = getFirstDayOfMonth()
+  document.getElementById("f_fim").value = getTodayISO()
+
+  // Add event listeners
+  document.getElementById("recordForm").addEventListener("submit", saveRecord)
+  document.getElementById("searchQuery").addEventListener("input", filterRecords)
+  document.getElementById("f_ini").addEventListener("change", filterRecords)
+  document.getElementById("f_fim").addEventListener("change", filterRecords)
+  document.getElementById("f_loja").addEventListener("change", filterRecords)
 }
 
 function clearForm() {
-  $("data").value = getTodayISO();
-  $("loja").value = "";
-  $("pedido").value = "";
-  $("nota").value = "";
-  $("valor_produto").value = "0";
-  $("estorno_merc").value = "0";
-  $("estorno_frete").value = "0";
-  $("status_pedido").value = "A COLETAR";
-  $("situacao").value = "EM ABERTO";
-  $("obs").value = "";
-  $("pedido").focus();
+  document.getElementById("recordForm").reset()
+  document.getElementById("data").value = getTodayISO()
 }
 
 function saveRecord(e) {
-  e.preventDefault();
-  const data = {
-    data: $("data").value,
-    loja: $("loja").value,
-    pedido: $("pedido").value.trim(),
-    nota: $("nota").value.trim(),
-    valor_produto: Number($("valor_produto").value || 0),
-    estorno_merc: Number($("estorno_merc").value || 0),
-    estorno_frete: Number($("estorno_frete").value || 0),
-    status_pedido: $("status_pedido").value,
-    situacao: $("situacao").value,
-    obs: $("obs").value.trim(),
-  };
+  e.preventDefault()
+
+  const formData = new FormData(e.target)
+  const data = Object.fromEntries(formData)
+
   if (!data.data || !data.loja || !data.pedido) {
-    showToast("Campos obrigatórios", "Preencha DATA, LOJA e PEDIDO.");
-    return;
-  }
-  addRegistro(data);
-  clearForm();
-  updateTable();
-  showToast("Registro salvo", "O registro foi adicionado com sucesso.");
-}
-
-// =================== Tabela / Filtros ===================
-const tableBody = $("tableBody");
-const recordCount = $("recordCount");
-const fechamento = $("fechamento");
-
-function aplicarFiltros() {
-  const ini = $("f_ini").value;
-  const fim = $("f_fim").value;
-  const loja = $("f_loja").value;
-
-  let lista = registros.map((r) => ({ ...r, valor_a_pagar: calcularValor(r) }));
-  if (ini) lista = lista.filter((r) => r.data >= ini);
-  if (fim) lista = lista.filter((r) => r.data <= fim);
-  if (loja && loja !== "todas") lista = lista.filter((r) => r.loja === loja);
-  registrosFiltrados = lista;
-
-  // higieniza seleção
-  const idsExistentes = new Set(registros.map(r => r.id));
-  for (const id of [...selectedIds]) {
-    if (!idsExistentes.has(id)) selectedIds.delete(id);
-  }
-}
-
-function renderTable() {
-  tableBody.innerHTML = "";
-
-  if (registrosFiltrados.length === 0) {
-    const tr = document.createElement("tr");
-    tr.className = "empty-state";
-    tr.innerHTML = `
-      <td colspan="13">
-        <div class="empty-content">
-          <div>Nenhum registro encontrado</div>
-          <div class="empty-subtitle">Adicione um novo registro ou ajuste os filtros</div>
-        </div>
-      </td>`;
-    tableBody.appendChild(tr);
-    syncHeaderCheckbox();
-    return;
+    showNotification("Preencha os campos obrigatórios: DATA, LOJA e PEDIDO.", "error", "Campos obrigatórios")
+    return
   }
 
-  for (const r of registrosFiltrados) {
-    const checked = selectedIds.has(r.id) ? "checked" : "";
-    const tr = document.createElement("tr");
-    tr.className = "data-row";
-    tr.innerHTML = `
-      <td class="text-center">
-        <input type="checkbox" class="row-check" data-id="${r.id}" ${checked}/>
-      </td>
-      <td class="font-mono">${formatDate(r.data)}</td>
-      <td>${r.loja}</td>
-      <td class="font-mono">${r.pedido}</td>
-      <td class="font-mono">${r.nota || "-"}</td>
-      <td class="text-right font-mono">${formatCurrency(r.valor_produto)}</td>
-      <td class="text-center"></td>
-      <td class="text-right font-mono">${formatCurrency(r.estorno_frete)}</td>
-      <td class="text-right font-mono" style="font-weight:700">${formatCurrency(r.valor_a_pagar)}</td>
-      <td class="text-center"></td>
-      <td class="text-center"></td>
-      <td class="obs-cell" title="${escapeHtml(r.obs || "")}" style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.obs || "-")}</td>
-      <td class="text-center">
-        <div class="actions" style="display:flex; gap:6px; justify-content:center;">
-          <button class="btn btn-secondary" data-action="coletar" data-id="${r.id}">Coletar</button>
-          <button class="btn btn-secondary" data-action="cancelar" data-id="${r.id}">Cancelar</button>
-
-          <!-- Botão LÁPIS (editar observação) -->
-          <button class="btn btn-secondary" data-action="obs-edit" data-id="${r.id}" title="Editar observação" style="padding:6px 8px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-            </svg>
-          </button>
-
-          <button class="btn btn-primary" data-action="pagar" data-id="${r.id}">Pagar</button>
-        </div>
-      </td>
-    `;
-    tr.children[6].appendChild(createEstornoIndicator(r.estorno_merc)); // S/N
-    tr.children[9].appendChild(createStatusBadge(r.status_pedido, "pedido"));
-    tr.children[10].appendChild(createStatusBadge(r.situacao, "situacao"));
-    tableBody.appendChild(tr);
+  const newRecord = {
+    id: nextId(),
+    data: data.data,
+    loja: data.loja,
+    pedido: data.pedido.trim(),
+    nota: data.nota.trim(),
+    valor_produto: Number(data.valor_produto || 0),
+    estorno_merc: Number(data.estorno_merc || 0),
+    estorno_frete: Number(data.estorno_frete || 0),
+    status_pedido: data.status_pedido,
+    situacao: data.situacao,
+    obs: data.obs.trim() || "-",
   }
 
-  syncHeaderCheckbox();
+  registros.unshift(newRecord)
+  clearForm()
+  renderRecords()
+  showNotification("Registro salvo com sucesso!", "success", "Sucesso")
 }
 
-function updateRecordCount() {
-  const n = registrosFiltrados.length;
-  recordCount.textContent = `${n} registro${n !== 1 ? "s" : ""}`;
+function getFilteredRecords() {
+  const searchQuery = document.getElementById("searchQuery").value
+  const f_ini = document.getElementById("f_ini").value
+  const f_fim = document.getElementById("f_fim").value
+  const f_loja = document.getElementById("f_loja").value
+
+  let lista = registros.map((r) => ({ ...r, valor_a_pagar: calcularValor(r) }))
+
+  if (f_ini) lista = lista.filter((r) => r.data >= f_ini)
+  if (f_fim) lista = lista.filter((r) => r.data <= f_fim)
+  if (f_loja && f_loja !== "todas") lista = lista.filter((r) => r.loja === f_loja)
+
+  if (searchQuery) {
+    const q = normalizeString(searchQuery)
+    lista = lista.filter((r) => {
+      const pedido = normalizeString(r.pedido)
+      const nota = normalizeString(r.nota)
+      return pedido.includes(q) || nota.includes(q)
+    })
+  }
+
+  return lista
 }
 
-function updateSummary() {
-  const total = registrosFiltrados.reduce((s, r) => s + calcularValor(r), 0);
-  $("stat-total").textContent = registrosFiltrados.length;
-  $("stat-coletados").textContent = registrosFiltrados.filter((r) => r.status_pedido === "COLETADO").length;
-  $("stat-pendentes").textContent = registrosFiltrados.filter((r) => r.status_pedido === "A COLETAR").length;
-  $("stat-valor").textContent = formatCurrency(total);
-  fechamento.style.display = "block";
+function renderRecords() {
+  const filteredRecords = getFilteredRecords()
+  const tbody = document.getElementById("recordsTableBody")
+
+  // Atualiza contador de registros
+  document.getElementById("record-count").textContent =
+    `${filteredRecords.length} registro${filteredRecords.length !== 1 ? "s" : ""}`
+
+  if (filteredRecords.length === 0) {
+    tbody.innerHTML = `
+            <tr>
+                <td colspan="13" class="empty-state">
+                    <div class="empty-state-icon">💾</div>
+                    <div>Nenhum registro encontrado</div>
+                    <div style="font-size: 0.875rem;">Adicione um novo registro ou ajuste os filtros</div>
+                </td>
+            </tr>
+        `
+  } else {
+    tbody.innerHTML = filteredRecords
+      .map(
+        (registro) => `
+            <tr>
+                <td>
+                    <input type="checkbox" 
+                           ${selectedIds.has(registro.id) ? "checked" : ""} 
+                           onchange="handleRowSelect(${registro.id}, this.checked)">
+                </td>
+                <td style="font-family: monospace; font-size: 0.875rem;">${formatDate(registro.data)}</td>
+                <td>${registro.loja}</td>
+                <td style="font-family: monospace;">${registro.pedido}</td>
+                <td style="font-family: monospace;">${registro.nota || "-"}</td>
+                <td class="text-right" style="font-family: monospace;">${formatCurrency(registro.valor_produto)}</td>
+                <td class="text-center">
+                    <span class="estorno-indicator ${registro.estorno_merc ? "estorno-yes" : "estorno-no"}">
+                        ${registro.estorno_merc ? "S" : "N"}
+                    </span>
+                </td>
+                <td class="text-right" style="font-family: monospace;">${formatCurrency(registro.estorno_frete)}</td>
+                <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatCurrency(calcularValor(registro))}</td>
+                <td class="text-center">
+                    <span class="badge ${getStatusBadgeClass(registro.status_pedido, "pedido")}">${registro.status_pedido}</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${getStatusBadgeClass(registro.situacao, "situacao")}">${registro.situacao}</span>
+                </td>
+                <td class="obs-cell">
+                    ${
+                      editingObs === registro.id
+                        ? `
+                        <div class="obs-edit">
+                            <input type="text" id="obsEdit" value="${registro.obs === "-" ? "" : registro.obs}" style="flex: 1;">
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="saveObs(${registro.id})">
+                                <span class="icon-save"></span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditObs()">
+                                <span class="icon-x"></span>
+                            </button>
+                        </div>
+                    `
+                        : `
+                        <div class="obs-display" onclick="startEditObs(${registro.id}, '${registro.obs}')" title="${registro.obs}">
+                            ${registro.obs || "-"}
+                        </div>
+                    `
+                    }
+                </td>
+                <td class="text-center">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.25rem; justify-content: center;">
+                        <button class="btn btn-sm btn-secondary" onclick="freteAoColetar(${registro.id})">Coletar</button>
+                        <button class="btn btn-sm btn-secondary" onclick="cancelarPedido(${registro.id})">Cancelar</button>
+                        <button class="btn btn-sm btn-secondary" onclick="startEditObs(${registro.id}, '${registro.obs}')" title="Editar observação">
+                            <span class="icon-edit"></span>
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="marcarComoPago(${registro.id})">Pagar</button>
+                    </div>
+                </td>
+            </tr>
+        `,
+      )
+      .join("")
+  }
+
+  updateSummary(filteredRecords)
 }
 
-function updateTable() {
-  aplicarFiltros();
-  renderTable();
-  updateSummary();
-  updateRecordCount();
+function getStatusBadgeClass(status, type) {
+  if (type === "pedido") {
+    if (status === "COLETADO") return "badge-success"
+    if (status === "A COLETAR") return "badge-warning"
+    if (status === "CANCELADO") return "badge-danger"
+  } else {
+    if (status === "PAGO") return "badge-success"
+    return "badge-warning"
+  }
+  return ""
 }
 
-// =================== Export CSV ===================
+function updateSummary(filteredRecords) {
+  const total = filteredRecords.length
+  const coletados = filteredRecords.filter((r) => r.status_pedido === "COLETADO").length
+  const pendentes = filteredRecords.filter((r) => r.status_pedido === "A COLETAR").length
+  const valorTotal = filteredRecords.reduce((s, r) => s + calcularValor(r), 0)
+
+  document.getElementById("summary-total").textContent = total
+  document.getElementById("summary-coletados").textContent = coletados
+  document.getElementById("summary-pendentes").textContent = pendentes
+  document.getElementById("summary-valor").textContent = formatCurrency(valorTotal)
+}
+
+function filterRecords() {
+  renderRecords()
+}
+
+function clearSearch() {
+  document.getElementById("searchQuery").value = ""
+  filterRecords()
+}
+
+function updateRegistro(id, updates) {
+  const index = registros.findIndex((r) => r.id === id)
+  if (index !== -1) {
+    registros[index] = { ...registros[index], ...updates }
+    renderRecords()
+  }
+}
+
+function freteAoColetar(id) {
+  updateRegistro(id, {
+    status_pedido: "COLETADO",
+    estorno_merc: 0,
+    estorno_frete: 0,
+  })
+  showNotification("Frete de R$ 8,00 aplicado.", "success", "Pedido COLETADO")
+}
+
+function cancelarPedido(id) {
+  const naoVoltou = confirm(
+    "A mercadoria NÃO voltou ao CD?\n\n" +
+      "Se SIM: vamos descontar (valor do produto + frete) deste pagamento.\n" +
+      "Se NÃO: apenas não pagaremos o frete (R$ 0,00).",
+  )
+
+  if (naoVoltou) {
+    updateRegistro(id, { status_pedido: "CANCELADO", estorno_merc: 1 })
+    showNotification("Descontado produto + frete.", "warning", "Cancelado sem devolução")
+  } else {
+    updateRegistro(id, { status_pedido: "CANCELADO", estorno_merc: 0, estorno_frete: 0 })
+    showNotification("Sem pagamento de frete.", "warning", "Cancelado com devolução")
+  }
+}
+
+function marcarComoPago(id) {
+  updateRegistro(id, { situacao: "PAGO" })
+  showNotification("Registro marcado como PAGO.", "success", "Pagamento")
+}
+
+function handleSelectAll(checked) {
+  const filteredRecords = getFilteredRecords()
+  if (checked) {
+    selectedIds = new Set(filteredRecords.map((r) => r.id))
+  } else {
+    selectedIds = new Set()
+  }
+  renderRecords()
+}
+
+function handleRowSelect(id, checked) {
+  if (checked) {
+    selectedIds.add(id)
+  } else {
+    selectedIds.delete(id)
+  }
+
+  // Update select all checkbox
+  const filteredRecords = getFilteredRecords()
+  const selectAllCheckbox = document.getElementById("selectAll")
+  selectAllCheckbox.checked = filteredRecords.length > 0 && selectedIds.size === filteredRecords.length
+}
+
+function clearSelection() {
+  selectedIds = new Set()
+  renderRecords()
+}
+
+function pagarSelecionados() {
+  if (selectedIds.size === 0) {
+    showNotification("Nenhum registro selecionado.", "warning", "Seleção vazia")
+    return
+  }
+
+  let count = 0
+  selectedIds.forEach((id) => {
+    updateRegistro(id, { situacao: "PAGO" })
+    count++
+  })
+
+  showNotification(`${count} registro(s) marcado(s) como PAGO.`, "success", "Pagamentos processados")
+}
+
+function startEditObs(id, currentObs) {
+  editingObs = id
+  renderRecords()
+
+  // Focus on the input after render
+  setTimeout(() => {
+    const input = document.getElementById("obsEdit")
+    if (input) {
+      input.focus()
+      input.value = currentObs === "-" ? "" : currentObs
+    }
+  }, 0)
+}
+
+function saveObs(id) {
+  const input = document.getElementById("obsEdit")
+  const newObs = input.value.trim() || "-"
+  updateRegistro(id, { obs: newObs })
+  editingObs = null
+  showNotification("Observação atualizada.", "success", "Atualização")
+}
+
+function cancelEditObs() {
+  editingObs = null
+  renderRecords()
+}
+
 function exportCSV() {
+  const filteredRecords = getFilteredRecords()
   const headers = [
-    "Data","Loja","Pedido","Nota","Val. Produto","Est. Merc","Est. Frete","Valor a Pagar","Status","Situação","Observação",
-  ];
+    "Data",
+    "Loja",
+    "Pedido",
+    "Nota",
+    "Val. Produto",
+    "Est. Merc",
+    "Est. Frete",
+    "Valor a Pagar",
+    "Status",
+    "Situação",
+    "Observação",
+  ]
+
   const csv = [
     headers.join(","),
-    ...registrosFiltrados.map((r) =>
+    ...filteredRecords.map((r) =>
       [
         r.data,
         r.loja,
@@ -327,241 +476,228 @@ function exportCSV() {
         r.obs || "",
       ]
         .map((x) => `"${x}"`)
-        .join(",")
+        .join(","),
     ),
-  ].join("\n");
+  ].join("\n")
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `coletas_${getTodayISO()}.csv`;
-  a.click();
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = `coletas_${getTodayISO()}.csv`
+  a.click()
 }
 
-// =================== Frete ao coletar ===================
-function freteAoColetar(id) {
-  const reg = updateRegistro(id, {
-    status_pedido: "COLETADO",
-    estorno_merc: 0,
-    estorno_frete: 0,
-  });
-  if (!reg) return;
-  showToast("Atualizado", "Pedido COLETADO: frete de R$ 8,00 aplicado.");
-  updateTable();
-}
-
-// =================== Edição inline da Observação ===================
-function enterObsEdit(id) {
-  // acha a linha/célula
-  const rowBtn = tableBody.querySelector(`button[data-action="obs-edit"][data-id="${id}"]`);
-  if (!rowBtn) return;
-  const tr = rowBtn.closest("tr");
-  const cell = tr.querySelector(".obs-cell");
-  if (!cell) return;
-
-  // valor atual
-  const atual = (registros.find(r => r.id === id)?.obs || "").replace(/^-\s*$/, "");
-  const val = escapeHtml(atual);
-
-  // guarda conteúdo original para cancelar
-  cell.dataset.original = cell.innerHTML;
-
-  // editor inline
-  cell.innerHTML = `
-    <div class="obs-edit" style="display:flex; gap:6px; align-items:center;">
-      <input type="text" class="input obs-input" value="${val}" style="flex:1; min-width:180px; padding:6px 8px;"/>
-      <button class="btn btn-primary" data-action="obs-save" data-id="${id}" title="Salvar" style="padding:6px 8px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20,6 9,17 4,12"/>
-        </svg>
-      </button>
-      <button class="btn btn-secondary" data-action="obs-cancel" data-id="${id}" title="Cancelar" style="padding:6px 8px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
-    </div>
-  `;
-
-  // foco no input
-  const input = cell.querySelector(".obs-input");
-  input?.focus();
-  input?.setSelectionRange(input.value.length, input.value.length);
-}
-
-function saveObsInline(id) {
-  const rowBtn = tableBody.querySelector(`button[data-action="obs-save"][data-id="${id}"]`);
-  if (!rowBtn) return;
-  const tr = rowBtn.closest("tr");
-  const cell = tr.querySelector(".obs-cell");
-  const input = cell.querySelector(".obs-input");
-  const novo = (input?.value || "").trim();
-  updateRegistro(id, { obs: novo.length ? novo : "-" });
-  showToast("Observação", "Observação atualizada.");
-  updateTable();
-}
-
-function cancelObsInline(id) {
-  // apenas re-renderiza a tabela (ou restaura o original se quiser sem re-render)
-  updateTable();
-}
-
-// =================== Ações por linha ===================
-function handleRowAction(e) {
-  const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
-
-  const id = Number(btn.getAttribute("data-id"));
-  const action = btn.getAttribute("data-action");
-
-  if (action === "coletar") {
-    freteAoColetar(id);
-    return;
-  }
-
-  if (action === "cancelar") {
-    const naoVoltou = confirm(
-      "A mercadoria NÃO voltou ao CD?\n\n" +
-        "Se SIM: vamos descontar (valor do produto + frete) deste pagamento.\n" +
-        "Se NÃO: apenas não pagaremos o frete (R$ 0,00)."
-    );
-
-    if (naoVoltou) {
-      updateRegistro(id, { status_pedido: "CANCELADO", estorno_merc: 1 });
-      showToast("Cancelado", "Sem devolução: descontado produto + frete.");
-    } else {
-      updateRegistro(id, {
-        status_pedido: "CANCELADO",
-        estorno_merc: 0,
-        estorno_frete: 0,
-      });
-      showToast("Cancelado", "Com devolução: sem pagamento de frete.");
-    }
-    updateTable();
-    return;
-  }
-
-  if (action === "obs-edit") { enterObsEdit(id); return; }
-  if (action === "obs-save") { saveObsInline(id); return; }
-  if (action === "obs-cancel") { cancelObsInline(id); return; }
-
-  if (action === "pagar") {
-    updateRegistro(id, { situacao: "PAGO" });
-    showToast("Atualizado", "Registro marcado como PAGO.");
-    updateTable();
-  }
-}
-
-// =================== Seleção em massa ===================
-function handleSelectAllChange(e) {
-  const check = e.target.checked;
-  for (const r of registrosFiltrados) {
-    if (check) selectedIds.add(r.id);
-    else selectedIds.delete(r.id);
-  }
-  renderTable();
-}
-
-function handleRowCheckboxChange(e) {
-  const box = e.target.closest("input.row-check[data-id]");
-  if (!box) return;
-  const id = Number(box.getAttribute("data-id"));
-  if (box.checked) selectedIds.add(id);
-  else selectedIds.delete(id);
-  syncHeaderCheckbox();
-}
-
-function syncHeaderCheckbox() {
-  if (!selectAll) return;
-  if (registrosFiltrados.length === 0) {
-    selectAll.checked = false;
-    selectAll.indeterminate = false;
-    return;
-  }
-  let selectedCount = 0;
-  for (const r of registrosFiltrados) if (selectedIds.has(r.id)) selectedCount++;
-  selectAll.checked = selectedCount === registrosFiltrados.length;
-  selectAll.indeterminate = selectedCount > 0 && selectedCount < registrosFiltrados.length;
-}
-
-function clearSelection() {
-  selectedIds.clear();
-  renderTable();
-  showToast("Seleção", "Seleção limpa.");
-}
-
-function pagarSelecionados() {
-  if (selectedIds.size === 0) {
-    showToast("Seleção", "Nenhum registro selecionado.");
-    return;
-  }
-  let count = 0;
-  for (const id of selectedIds) {
-    const reg = updateRegistro(id, { situacao: "PAGO" });
-    if (reg) count++;
-  }
-  updateTable();
-  showToast("Pago", `${count} registro(s) marcado(s) como PAGO.`);
-}
-
-// =================== Cancelar não entregues do dia ===================
-function cancelarNaoEntreguesDoDia(diaISO) {
-  const dia = diaISO || getTodayISO();
-  let alterados = 0;
-
-  for (const r of registros) {
-    if (r.data === dia && r.status_pedido !== "COLETADO") {
-      r.status_pedido = "CANCELADO";
-      r.estorno_merc = 1; // não devolveu
-      r.obs =
-        (r.obs ? r.obs + " | " : "") +
-        `Cancelado por não entregue no dia ${formatDate(dia)}`;
-      r.valor_a_pagar = calcularValor(r);
-      alterados++;
-    }
-  }
-
-  updateTable();
-  showToast(
-    "Fechamento do dia",
-    `${alterados} registro(s) não entregues foram CANCELADOS em ${formatDate(
-      dia
-    )}.`
-  );
-}
-window.cancelarNaoEntreguesDoDia = cancelarNaoEntreguesDoDia;
-
-// =================== Eventos ===================
+// Inicializa a aplicação
 document.addEventListener("DOMContentLoaded", () => {
-  registros = registros.map((r) => ({
-    ...r,
-    valor_a_pagar: calcularValor(r),
-  }));
+  initializeForm()
+  renderRecords()
+  document.getElementById("btnRelatorioGPT")?.addEventListener("click", gerarRelatorioNoChatGPT);
+})
 
-  initializeForm();
-  updateTable();
+// ===== Relatório p/ ChatGPT =====
+function buildRelatorioPrompt() {
+  // pega exatamente a lista com filtros atuais
+  const lista = getFilteredRecords()
+    .filter(r => r.status_pedido === "CANCELADO" && Number(r.estorno_merc) === 1);
 
-  form?.addEventListener("submit", saveRecord);
-  limparBtn?.addEventListener("click", clearForm);
+  const linhas = lista.map(r => {
+    // para cancelado com estorno_merc=1, calcularValor é negativo (desconto);
+    // usamos valor absoluto para exibir
+    const valor = Math.abs(calcularValor(r));
+    return `${r.pedido} / ${formatCurrency(valor)} / ${formatDate(r.data)} / ${r.loja}`;
+  });
 
-  atualizarBtn?.addEventListener("click", updateTable);
-  exportarBtn?.addEventListener("click", exportCSV);
+  const corpo = linhas.length
+    ? linhas.join("\n")
+    : "(nenhum pedido descontado no filtro atual)";
 
-  $("tableBody")?.addEventListener("click", handleRowAction);
+  const prompt =
+`Quero um relatório curto e claro (em português) no seguinte formato:
 
-  selectAll?.addEventListener("change", handleSelectAllChange);
-  $("tableBody")?.addEventListener("change", handleRowCheckboxChange);
-  limparSelecaoBtn?.addEventListener("click", clearSelection);
-  pagarSelecionadosBtn?.addEventListener("click", pagarSelecionados);
+TÍTULO: Relatório de descontos do período filtrado
+RESUMO: total de pedidos descontados e soma total dos descontos.
+TABELA:
+- Colunas: Pedido | Valor descontado | Data | Loja
+- Dados:
+${corpo}
 
-  if (cancelarNaoEntreguesBtn) {
-    cancelarNaoEntreguesBtn.addEventListener("click", () => {
-      const dia =
-        (diaFechamentoInput && diaFechamentoInput.value)
-          ? diaFechamentoInput.value
-          : getTodayISO();
-      cancelarNaoEntreguesDoDia(dia);
-    });
+Observações:
+- Considerar "pedidos descontados" como CANCELADO com estorno_merc=1.
+- Some o total descontado.
+- Se possível, gere uma versão em Markdown bem alinhada.`;
+
+  return prompt;
+}
+
+// ===== Relatório p/ ChatGPT (puxa os dados registrados do filtro atual) =====
+function buildRelatorioPrompt() {
+  const lista = getFilteredRecords(); // já respeita busca, datas e loja
+
+  // filtros atuais (para exibir no cabeçalho do prompt)
+  const f_ini = document.getElementById("f_ini")?.value || "";
+  const f_fim = document.getElementById("f_fim")?.value || "";
+  const f_lojaSel = document.getElementById("f_loja")?.value || "todas";
+  const f_lojaTxt = f_lojaSel && f_lojaSel !== "todas" ? f_lojaSel : "(todas)";
+
+  // seções úteis
+  const descontados = lista.filter(r => r.status_pedido === "CANCELADO" && Number(r.estorno_merc) === 1);
+  const coletados   = lista.filter(r => r.status_pedido === "COLETADO");
+  const pendentes   = lista.filter(r => r.status_pedido === "A COLETAR");
+  const canceladosComDevolucao = lista.filter(r => r.status_pedido === "CANCELADO" && Number(r.estorno_merc) === 0);
+
+  // somatórios
+  const somaValorPagar = lista.reduce((s, r) => s + calcularValor(r), 0);
+  const somaDescontos  = descontados.reduce((s, r) => s + Math.abs(calcularValor(r)), 0);
+
+  // helpers para linhas
+  const linhaDescontado = (r) =>
+    `${r.pedido} / ${formatCurrency(Math.abs(calcularValor(r)))} / ${formatDate(r.data)} / ${r.loja}`;
+
+  const linhasDescontados = descontados.length
+    ? descontados.map(linhaDescontado).join("\n")
+    : "(nenhum pedido descontado no filtro atual)";
+
+  // tabela completa (Markdown) com os dados registrados
+  const headerTabela =
+`| Pedido | Nota | Data | Loja | Status | Situação | R$ Produto | Est. Merc | Est. Frete | R$ a Pagar | Obs |
+|---|---|---|---|---|---:|---:|---:|---:|---:|---|`;
+
+  const linhasTabela = lista.length
+    ? lista.map(r => {
+        const estMerc = Number(r.estorno_merc) ? "S" : "N";
+        return `| ${r.pedido} | ${r.nota || "-"} | ${formatDate(r.data)} | ${r.loja} | ${r.status_pedido} / ${r.situacao} | ${formatCurrency(r.valor_produto)} | ${estMerc} | ${formatCurrency(r.estorno_frete)} | ${formatCurrency(calcularValor(r))} | ${r.obs || "-"} |`;
+      }).join("\n")
+    : "(sem registros no filtro atual)";
+
+  const agora = new Date();
+  const geradoEm = `${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR")}`;
+
+  const prompt =
+`Quero um relatório curto e claro (em português) com base **exatamente** nos dados abaixo.
+
+## Contexto do filtro
+- Período: ${f_ini || "(sem início)"} a ${f_fim || "(sem fim)"}  
+- Loja: ${f_lojaTxt}  
+- Gerado em: ${geradoEm}
+
+## Resumo
+- Total de registros: ${lista.length}
+- Coletados: ${coletados.length}
+- Pendentes (a coletar): ${pendentes.length}
+- Cancelados (com devolução): ${canceladosComDevolucao.length}
+- **Pedidos descontados** (cancelado + estorno_merc=1): ${descontados.length}
+- **Soma dos descontos** (apenas descontados): ${formatCurrency(somaDescontos)}
+- **Valor total a pagar** (considerando regras atuais): ${formatCurrency(somaValorPagar)}
+
+## Pedidos descontados (formato: pedido / valor descontado / data / loja)
+${linhasDescontados}
+
+## Tabela completa (registros do filtro atual)
+${headerTabela}
+${linhasTabela}
+
+### Instruções
+- Gere um relatório enxuto em **Markdown** com:
+  1) Título, período e loja
+  2) Um pequeno resumo com os números principais acima
+  3) Uma tabela “Pedidos descontados”
+  4) Uma tabela “Registros do período”
+- Ajuste alinhamento/formatos quando útil e termine com um total de descontos e total a pagar.`;
+
+  return prompt;
+}
+
+// ===== Relatório p/ ChatGPT (puxa os dados registrados do filtro atual) =====
+function buildRelatorioPrompt() {
+  const lista = getFilteredRecords(); // já respeita busca, datas e loja
+
+  // filtros atuais (para exibir no cabeçalho do prompt)
+  const f_ini = document.getElementById("f_ini")?.value || "";
+  const f_fim = document.getElementById("f_fim")?.value || "";
+  const f_lojaSel = document.getElementById("f_loja")?.value || "todas";
+  const f_lojaTxt = f_lojaSel && f_lojaSel !== "todas" ? f_lojaSel : "(todas)";
+
+  // seções úteis
+  const descontados = lista.filter(r => r.status_pedido === "CANCELADO" && Number(r.estorno_merc) === 1);
+  const coletados   = lista.filter(r => r.status_pedido === "COLETADO");
+  const pendentes   = lista.filter(r => r.status_pedido === "A COLETAR");
+  const canceladosComDevolucao = lista.filter(r => r.status_pedido === "CANCELADO" && Number(r.estorno_merc) === 0);
+
+  // somatórios
+  const somaValorPagar = lista.reduce((s, r) => s + calcularValor(r), 0);
+  const somaDescontos  = descontados.reduce((s, r) => s + Math.abs(calcularValor(r)), 0);
+
+  // helpers para linhas
+  const linhaDescontado = (r) =>
+    `${r.pedido} / ${formatCurrency(Math.abs(calcularValor(r)))} / ${formatDate(r.data)} / ${r.loja}`;
+
+  const linhasDescontados = descontados.length
+    ? descontados.map(linhaDescontado).join("\n")
+    : "(nenhum pedido descontado no filtro atual)";
+
+  // tabela completa (Markdown) com os dados registrados
+  const headerTabela =
+`| Pedido | Nota | Data | Loja | Status | Situação | R$ Produto | Est. Merc | Est. Frete | R$ a Pagar | Obs |
+|---|---|---|---|---|---:|---:|---:|---:|---:|---|`;
+
+  const linhasTabela = lista.length
+    ? lista.map(r => {
+        const estMerc = Number(r.estorno_merc) ? "S" : "N";
+        return `| ${r.pedido} | ${r.nota || "-"} | ${formatDate(r.data)} | ${r.loja} | ${r.status_pedido} / ${r.situacao} | ${formatCurrency(r.valor_produto)} | ${estMerc} | ${formatCurrency(r.estorno_frete)} | ${formatCurrency(calcularValor(r))} | ${r.obs || "-"} |`;
+      }).join("\n")
+    : "(sem registros no filtro atual)";
+
+  const agora = new Date();
+  const geradoEm = `${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR")}`;
+
+  const prompt =
+`Quero um relatório curto e claro (em português) com base **exatamente** nos dados abaixo.
+
+## Contexto do filtro
+- Período: ${f_ini || "(sem início)"} a ${f_fim || "(sem fim)"}  
+- Loja: ${f_lojaTxt}  
+- Gerado em: ${geradoEm}
+
+## Resumo
+- Total de registros: ${lista.length}
+- Coletados: ${coletados.length}
+- Pendentes (a coletar): ${pendentes.length}
+- Cancelados (com devolução): ${canceladosComDevolucao.length}
+- **Pedidos descontados** (cancelado + estorno_merc=1): ${descontados.length}
+- **Soma dos descontos** (apenas descontados): ${formatCurrency(somaDescontos)}
+- **Valor total a pagar** (considerando regras atuais): ${formatCurrency(somaValorPagar)}
+
+## Pedidos descontados (formato: pedido / valor descontado / data / loja)
+${linhasDescontados}
+
+## Tabela completa (registros do filtro atual)
+${headerTabela}
+${linhasTabela}
+
+### Instruções
+- Gere um relatório enxuto em **Markdown** com:
+  1) Título, período e loja
+  2) Um pequeno resumo com os números principais acima
+  3) Uma tabela “Pedidos descontados”
+  4) Uma tabela “Registros do período”
+- Ajuste alinhamento/formatos quando útil e termine com um total de descontos e total a pagar.`;
+
+  return prompt;
+}
+
+async function gerarRelatorioNoChatGPT() {
+  const prompt = buildRelatorioPrompt();
+  try {
+    await navigator.clipboard.writeText(prompt);
+    showNotification("Prompt copiado. Abrindo ChatGPT — cole (Ctrl/Cmd+V) e envie.", "success", "Relatório");
+  } catch {
+    const blob = new Blob([prompt], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "prompt_relatorio_chatgpt.txt";
+    a.click();
+    showNotification("Não consegui copiar. Baixei um .txt com o prompt.", "warning", "Relatório");
   }
-});
+  window.open("https://chat.openai.com/", "_blank", "noopener");
+}
+

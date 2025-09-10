@@ -1,345 +1,293 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Coletas Flex - Sistema de Gerenciamento</title>
-  <meta name="description" content="Sistema completo para gerenciamento de coletas, entregas e controle logístico"/>
-  <meta name="author" content="Coletas Flex"/>
-  <meta name="keywords" content="coletas, entregas, logística, gestão, pedidos, notas fiscais"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flex Controle - Sistema de Gerenciamento de Coletas</title>
 
-  <meta property="og:title" content="Flex Controle - Sistema de Gerenciamento"/>
-  <meta property="og:description" content="Sistema completo para gerenciamento de coletas, entregas e controle logístico"/>
-  <meta property="og:type" content="website"/>
-
-  <link rel="stylesheet" href="flex.css"/>
+    <link rel="stylesheet" href="flex.css">
 </head>
 <body>
-  <!-- Header -->
-  <div class="header">
-    <div class="header-content">
-      <div class="header-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M7 8h10v8H7z"/>
-          <path d="M3 12h4m10 0h4"/>
-        </svg>
-      </div>
-      <div class="header-text">
-        <h1>Flex Controle</h1>
-        <p>Sistema de gerenciamento de coletas e entregas</p>
-      </div>
-    </div>
-  </div>
+    <!-- Adicionado container de notificações para popups -->
+    <div id="notification-container" class="notification-container"></div>
 
-  <div class="container">
-    <!-- Form Card -->
-    <div class="card">
-      <div class="card-header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-        </svg>
-        <h2>Novo Registro</h2>
-      </div>
-
-      <form id="registroForm" class="form-grid">
-        <div class="form-group">
-          <label for="data" class="label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Data
-          </label>
-          <input type="date" id="data" class="input" required/>
-        </div>
-
-        <div class="form-group">
-          <label for="loja" class="label">Loja</label>
-          <select id="loja" class="select" required>
-            <option value="">Selecione uma loja</option>
-            <option value="LOJA A">Shopee Adob</option>
-            <option value="LOJA B">Shopee APPB</option>
-            <option value="LOJA C">Shopee Buscou Pneus</option>
-            <option value="LOJA D">Shopee Meta</option>
-            <option value="LOJA E">Shopee Natal</option>
-            <option value="LOJA F">Shopee RLD</option>
-            <option value="LOJA G">Shopee Rubão</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="pedido" class="label">Pedido (ID)</label>
-          <input type="text" id="pedido" class="input" placeholder="Digite o ID do pedido" required/>
-        </div>
-
-        <div class="form-group">
-          <label for="nota" class="label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14,2 14,8 20,8"/>
-            </svg>
-            Nota
-          </label>
-          <input type="text" id="nota" class="input" placeholder="Número da nota"/>
-        </div>
-
-        <!-- Valor do Produto -->
-        <div class="form-group">
-          <label for="valor_produto" class="label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-            Valor do Produto (R$)
-          </label>
-          <input type="number" id="valor_produto" class="input" step="0.01" min="0" value="0" placeholder="0,00"/>
-        </div>
-
-        <div class="form-group">
-          <label for="estorno_merc" class="label">Estorno Merc.</label>
-          <select id="estorno_merc" class="select">
-            <option value="0">Não</option>
-            <option value="1">Sim</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="estorno_frete" class="label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-            Estorno Frete (R$)
-          </label>
-          <input type="number" id="estorno_frete" class="input" step="0.01" min="0" value="0" placeholder="0,00"/>
-        </div>
-
-        <div class="form-group">
-          <label for="status_pedido" class="label">Status do Pedido</label>
-          <select id="status_pedido" class="select">
-            <option value="A COLETAR">A Coletar</option>
-            <option value="COLETADO">Coletado</option>
-            <option value="CANCELADO">Cancelado</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="situacao" class="label">Situação</label>
-          <select id="situacao" class="select">
-            <option value="EM ABERTO">Em Aberto</option>
-            <option value="PAGO">Pago</option>
-          </select>
-        </div>
-
-        <div class="form-group full-width">
-          <label for="obs" class="label">Observação</label>
-          <textarea id="obs" class="textarea" rows="2" placeholder="Digite observações adicionais..."></textarea>
-        </div>
-
-        <div class="form-actions full-width">
-          <button type="submit" class="btn btn-primary">Salvar Registro</button>
-          <button type="button" class="btn btn-secondary" id="limparBtn">Limpar</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Filter Card -->
-    <div class="card">
-      <div class="card-header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
-        </svg>
-        <h2>Filtros e Fechamento</h2>
-      </div>
-
-      <div class="filter-grid">
-        <div class="form-group">
-          <label for="f_ini" class="label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Data Início
-          </label>
-          <input type="date" id="f_ini" class="input"/>
-        </div>
-
-        <div class="form-group">
-          <label for="f_fim" class="label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Data Fim
-          </label>
-          <input type="date" id="f_fim" class="input"/>
-        </div>
-
-        <div class="form-group">
-          <label for="f_loja" class="label">Loja</label>
-          <select id="f_loja" class="select">
-            <option value="todas">(todas)</option>
-            <option value="LOJA A">Shopee Adob</option>
-            <option value="LOJA B">Shopee APPB</option>
-            <option value="LOJA C">Shopee Buscou Pneus</option>
-            <option value="LOJA D">Shopee Meta</option>
-            <option value="LOJA E">Shopee Natal</option>
-            <option value="LOJA F">Shopee RLD</option>
-            <option value="LOJA G">Shopee Rubão</option>
-          </select>
-        </div>
-
-        <!-- Fechar dia (opcional) -->
-        <div class="form-group">
-          <label for="diaFechamento" class="label">Dia p/ cancelar não entregues</label>
-          <input type="date" id="diaFechamento" class="input"/>
-        </div>
-      </div>
-
-      <div class="filter-actions" style="flex-wrap: wrap;">
-        <button class="btn btn-primary" id="atualizarBtn">Atualizar</button>
-        <button class="btn btn-secondary" id="exportarBtn">Exportar CSV</button>
-
-        <!-- Ações em massa -->
-        <span style="flex: 1 1 100%; height: 0;"></span>
-        <div style="display:flex; gap:8px; margin-top:.5rem; flex-wrap:wrap;">
-          <button class="btn btn-secondary" id="limparSelecaoBtn">Limpar Seleção</button>
-          <button class="btn btn-primary" id="pagarSelecionadosBtn">Marcar Selecionados como Pago</button>
-          <button class="btn btn-secondary" id="cancelarNaoEntreguesBtn">Cancelar Não Entregues do Dia</button>
-        </div>
-      </div>
-
-      <!-- Fechamento -->
-      <div id="fechamento" class="fechamento" style="display: none;">
-        <div class="fechamento-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 3v5h5"/>
-            <path d="M21 21v-5h-5"/>
-            <path d="M21 9a9 9 0 0 0-15-3.5L3 8"/>
-            <path d="M3 15a9 9 0 0 0 15 3.5L21 16"/>
-          </svg>
-          Resumo do Período
-        </div>
-        <div class="fechamento-grid">
-          <div class="stat-card total">
-            <div class="stat-value" id="stat-total">0</div>
-            <div class="stat-label">Total de Registros</div>
-          </div>
-          <div class="stat-card success">
-            <div class="stat-value" id="stat-coletados">0</div>
-            <div class="stat-label">Coletados</div>
-          </div>
-          <div class="stat-card warning">
-            <div class="stat-value" id="stat-pendentes">0</div>
-            <div class="stat-label">Pendentes</div>
-          </div>
-          <div class="stat-card primary">
-            <div class="stat-value" id="stat-valor">R$ 0,00</div>
-            <div class="stat-label">Valor Total</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Table Card -->
-    <div class="card">
-      <div class="card-header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <ellipse cx="12" cy="5" rx="9" ry="3"/>
-          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-          <path d="M3 5v14c0 1.66 4 3 9 3s-9-1.34 9-3V5"/>
-        </svg>
-        <h2>Registros de Produtos</h2>
-        <div class="record-count">
-          <span id="recordCount">0 registros</span>
-        </div>
-      </div>
-
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th class="text-center" style="width:42px;">
-                <input type="checkbox" id="selectAll" />
-              </th>
-              <th>Data</th>
-              <th>Loja</th>
-              <th>Pedido</th>
-              <th>Nota</th>
-              <th class="text-right">R$ Produto</th>
-              <th class="text-center">Est. Merc.</th>
-              <th class="text-right">Est. Frete</th>
-              <th class="text-right">R$ a Pagar</th>
-              <th class="text-center">Status</th>
-              <th class="text-center">Situação</th>
-              <th>Observação</th>
-              <th class="text-center">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody">
-            <tr class="empty-state">
-              <td colspan="13">
-                <div class="empty-content">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                  <div>Nenhum registro encontrado</div>
-                  <div class="empty-subtitle">Adicione um novo registro ou ajuste os filtros</div>
+    <!-- Cabeçalho -->
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-icon icon-truck"></div>
+                <div class="header-text">
+                    <h1>Flex Controle</h1>
+                    <p>Sistema de gerenciamento de coletas e entregas</p>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast -->
-  <div id="toast" class="toast" style="display: none;">
-    <div class="toast-content">
-      <div class="toast-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20,6 9,17 4,12"/>
-        </svg>
-      </div>
-      <div class="toast-text">
-        <div class="toast-title" id="toastTitle">Sucesso</div>
-        <div class="toast-description" id="toastDescription">Operação realizada com sucesso!</div>
-      </div>
-    </div>
-  </div>
-
-  <footer class="site-footer">
-    <div class="container footer-content">
-      <div class="footer-col footer-brand">
-        <div class="brand-wrapper">
-          <div class="brand-icon" aria-hidden="true">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M7 8h10v8H7z"/>
-              <path d="M3 12h4m10 0h4"/>
-            </svg>
-          </div>
-          <div>
-            <div class="brand-name">Coletas Flex</div>
-            <div class="brand-sub">Sistema de gerenciamento</div>
-          </div>
+            </div>
         </div>
-      </div>
-
-      <div class="footer-col footer-dev">
-        <div>Desenvolvido por <a class="dev-link" href="https://github.com/guubernardi" target="_blank" rel="noopener">Gustavo Bernardi</a></div>
-        <div class="footer-copy">&copy; 2025 Flex Controle. Todos os direitos reservados.</div>
-      </div>
     </div>
-  </footer>
 
-  <script src="flex.js"></script>
+    <div class="container" style="padding-top: 2rem;">
+    <!-- Card do formulário -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon-package"></span>
+                    Novo Registro
+                </div>
+            </div>
+            <div class="card-content">
+                <form id="recordForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="data">
+                                <span class="icon-calendar"></span>
+                                Data
+                            </label>
+                            <input type="date" id="data" name="data" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loja">Loja</label>
+                            <select id="loja" name="loja" required>
+                                <option value="">Selecione uma loja</option>
+                                <option value="Shopee Adob">Shopee Adob</option>
+                                <option value="Shopee APPB">Shopee APPB</option>
+                                <option value="Shopee Buscou Pneus">Shopee Buscou Pneus</option>
+                                <option value="Shopee Meta">Shopee Meta</option>
+                                <option value="Shopee Natal">Shopee Natal</option>
+                                <option value="Shopee RLD">Shopee RLD</option>
+                                <option value="Shopee Rubão">Shopee Rubão</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pedido">Pedido (ID)</label>
+                            <input type="text" id="pedido" name="pedido" placeholder="Digite o ID do pedido" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="nota">Nota</label>
+                            <input type="text" id="nota" name="nota" placeholder="Número da nota">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="valor_produto">
+                                <span class="icon-dollar"></span>
+                                Valor do Produto (R$)
+                            </label>
+                            <input type="number" id="valor_produto" name="valor_produto" step="0.01" min="0" placeholder="0,00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="estorno_merc">Estorno Merc.</label>
+                            <select id="estorno_merc" name="estorno_merc">
+                                <option value="0">Não</option>
+                                <option value="1">Sim</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="estorno_frete">
+                                <span class="icon-dollar"></span>
+                                Estorno Frete (R$)
+                            </label>
+                            <input type="number" id="estorno_frete" name="estorno_frete" step="0.01" min="0" placeholder="0,00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="status_pedido">Status do Pedido</label>
+                            <select id="status_pedido" name="status_pedido">
+                                <option value="A COLETAR">A Coletar</option>
+                                <option value="COLETADO">Coletado</option>
+                                <option value="CANCELADO">Cancelado</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="situacao">Situação</label>
+                            <select id="situacao" name="situacao">
+                                <option value="EM ABERTO">Em Aberto</option>
+                                <option value="PAGO">Pago</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="obs">Observação</label>
+                            <textarea id="obs" name="obs" placeholder="Digite observações adicionais..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="icon-save"></span>
+                            Salvar Registro
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="clearForm()">
+                            Limpar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    <!-- Card de filtros -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon-filter"></span>
+                    Filtros e Busca
+                </div>
+            </div>
+            <div class="card-content">
+                <!-- Pesquisa -->
+                <div class="search-section">
+                    <label style="color: #171717; font-weight: 600; margin-bottom: 0.5rem;">
+                        <span class="icon-search"></span>
+                        Pesquisar (Pedido ou Nota)
+                    </label>
+                    <div class="search-input">
+                        <input type="text" id="searchQuery" placeholder="Digite o ID do pedido ou a nota...">
+                        <button type="button" class="btn btn-secondary" onclick="clearSearch()">Limpar</button>
+                    </div>
+                </div>
+
+                <!-- Filtros de data e loja -->
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="f_ini">Data Início</label>
+                        <input type="date" id="f_ini">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="f_fim">Data Fim</label>
+                        <input type="date" id="f_fim">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="f_loja">Loja</label>
+                        <select id="f_loja">
+                            <option value="todas">(Todas)</option>
+                            <option value="Shopee Adob">Shopee Adob</option>
+                            <option value="Shopee APPB">Shopee APPB</option>
+                            <option value="Shopee Buscou Pneus">Shopee Buscou Pneus</option>
+                            <option value="Shopee Meta">Shopee Meta</option>
+                            <option value="Shopee Natal">Shopee Natal</option>
+                            <option value="Shopee RLD">Shopee RLD</option>
+                            <option value="Shopee Rubão">Shopee Rubão</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Botões de ação -->
+                <div class="btn-group">
+                    <button type="button" class="btn btn-secondary" onclick="exportCSV()">
+                        <span class="icon-download"></span>
+                        Exportar CSV
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearSelection()">
+                        Limpar Seleção
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="pagarSelecionados()">
+                        <span class="icon-check"></span>
+                        Marcar Selecionados como Pago
+                    </button>
+                </div>
+
+                <!-- Resumo -->
+                <div class="summary-grid">
+                    <div class="summary-card total">
+                        <div class="summary-number" id="summary-total">0</div>
+                        <div class="summary-label">Total de Registros</div>
+                    </div>
+                    <div class="summary-card success">
+                        <div class="summary-number" id="summary-coletados">0</div>
+                        <div class="summary-label">Coletados</div>
+                    </div>
+                    <div class="summary-card warning">
+                        <div class="summary-number" id="summary-pendentes">0</div>
+                        <div class="summary-label">Pendentes</div>
+                    </div>
+                    <div class="summary-card primary">
+                        <div class="summary-number" id="summary-valor">R$ 0,00</div>
+                        <div class="summary-label">Valor Total</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <!-- Card da tabela de dados -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon-database"></span>
+                    Registros de Produtos
+                    <span id="record-count" style="font-size: 0.875rem; color: #6b7280; margin-left: auto;">0 registros</span>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="table-container">
+                    <table id="recordsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 3rem;">
+                                    <input type="checkbox" id="selectAll" onchange="handleSelectAll(this.checked)">
+                                </th>
+                                <th>Data</th>
+                                <th>Loja</th>
+                                <th>Pedido</th>
+                                <th>Nota</th>
+                                <th class="text-right">R$ Produto</th>
+                                <th class="text-center">Est. Merc.</th>
+                                <th class="text-right">Est. Frete</th>
+                                <th class="text-right">R$ a Pagar</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Situação</th>
+                                <th>Observação</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTableBody">
+                                <!-- Registros serão inseridos aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+          <div class="btn-group" style="margin-top: .75rem;">
+            <button type="button" class="btn btn-primary" id="btnRelatorioGPT">
+              Gerar relatório no ChatGPT  
+            </button>
+            <p style="font-size: 0.75rem; color: #6b7280; margin-left: 1rem; align-self: center; position: relative; left: 180px;">
+              (Gerar um relatório resumido dos registros filtrados usando o ChatGPT: Basta Pressionar Control V + Enter No Campo de Texto Do ChatGPT)</p>
+          </div>
+
+
+    <!-- Rodapé -->
+    <div class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-icon icon-truck"></div>
+                    <div>
+                        <div class="footer-text">Coletas Flex</div>
+                        <div class="footer-subtitle">Sistema de gerenciamento</div>
+                    </div>
+                </div>
+                <div class="footer-credits">
+                    <div>
+                        Desenvolvido por 
+                        <a href="https://github.com/guubernardi" target="_blank" rel="noreferrer noopener">
+                            Gustavo Bernardi
+                        </a>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #9ca3af;">
+                        © 2025 Flex Controle. Todos os direitos reservados.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="flex.js"></script>
 </body>
 </html>
