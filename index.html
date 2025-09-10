@@ -59,10 +59,13 @@
           <label for="loja" class="label">Loja</label>
           <select id="loja" class="select" required>
             <option value="">Selecione uma loja</option>
-            <option value="LOJA A">LOJA A</option>
-            <option value="LOJA B">LOJA B</option>
-            <option value="LOJA C">LOJA C</option>
-            <option value="LOJA D">LOJA D</option>
+            <option value="LOJA A">Shopee Adob</option>
+            <option value="LOJA B">Shopee APPB</option>
+            <option value="LOJA C">Shopee Buscou Pneus</option>
+            <option value="LOJA D">Shopee Meta</option>
+            <option value="LOJA E">Shopee Natal</option>
+            <option value="LOJA F">Shopee RLD</option>
+            <option value="LOJA G">Shopee Rubão</option>
           </select>
         </div>
 
@@ -182,17 +185,34 @@
           <label for="f_loja" class="label">Loja</label>
           <select id="f_loja" class="select">
             <option value="todas">(todas)</option>
-            <option value="LOJA A">LOJA A</option>
-            <option value="LOJA B">LOJA B</option>
-            <option value="LOJA C">LOJA C</option>
-            <option value="LOJA D">LOJA D</option>
+            <option value="LOJA A">Shopee Adob</option>
+            <option value="LOJA B">Shopee APPB</option>
+            <option value="LOJA C">Shopee Buscou Pneus</option>
+            <option value="LOJA D">Shopee Meta</option>
+            <option value="LOJA E">Shopee Natal</option>
+            <option value="LOJA F">Shopee RLD</option>
+            <option value="LOJA G">Shopee Rubão</option>
           </select>
+        </div>
+
+        <!-- Fechar dia (opcional) -->
+        <div class="form-group">
+          <label for="diaFechamento" class="label">Dia p/ cancelar não entregues</label>
+          <input type="date" id="diaFechamento" class="input"/>
         </div>
       </div>
 
-      <div class="filter-actions">
+      <div class="filter-actions" style="flex-wrap: wrap;">
         <button class="btn btn-primary" id="atualizarBtn">Atualizar</button>
-        <button class="btn btn-secondary" id="exportarBtn">Exportar Excel</button>
+        <button class="btn btn-secondary" id="exportarBtn">Exportar CSV</button>
+
+        <!-- Ações em massa -->
+        <span style="flex: 1 1 100%; height: 0;"></span>
+        <div style="display:flex; gap:8px; margin-top:.5rem; flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="limparSelecaoBtn">Limpar Seleção</button>
+          <button class="btn btn-primary" id="pagarSelecionadosBtn">Marcar Selecionados como Pago</button>
+          <button class="btn btn-secondary" id="cancelarNaoEntreguesBtn">Cancelar Não Entregues do Dia</button>
+        </div>
       </div>
 
       <!-- Fechamento -->
@@ -233,7 +253,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <ellipse cx="12" cy="5" rx="9" ry="3"/>
           <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          <path d="M3 5v14c0 1.66 4 3 9 3s-9-1.34 9-3V5"/>
         </svg>
         <h2>Registros de Produtos</h2>
         <div class="record-count">
@@ -245,14 +265,17 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th class="text-center" style="width:42px;">
+                <input type="checkbox" id="selectAll" />
+              </th>
               <th>Data</th>
               <th>Loja</th>
               <th>Pedido</th>
               <th>Nota</th>
-              <th class="text-right">Val. Produto</th>
-              <th class="text-center">Est. Merc</th>
+              <th class="text-right">R$ Produto</th>
+              <th class="text-center">Est. Merc.</th>
               <th class="text-right">Est. Frete</th>
-              <th class="text-right">Valor a Pagar</th>
+              <th class="text-right">R$ a Pagar</th>
               <th class="text-center">Status</th>
               <th class="text-center">Situação</th>
               <th>Observação</th>
@@ -261,7 +284,7 @@
           </thead>
           <tbody id="tableBody">
             <tr class="empty-state">
-              <td colspan="12">
+              <td colspan="13">
                 <div class="empty-content">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -309,7 +332,6 @@
           </div>
         </div>
       </div>
-
 
       <div class="footer-col footer-dev">
         <div>Desenvolvido por <a class="dev-link" href="https://github.com/guubernardi" target="_blank" rel="noopener">Gustavo Bernardi</a></div>

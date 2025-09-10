@@ -7,7 +7,7 @@ let registros = [
   {
     id: 1,
     data: "2025-09-10",
-    loja: "LOJA A",
+    loja: "Shopee Adob",
     pedido: "122121",
     nota: "2000",
     valor_produto: 299.90,
@@ -20,6 +20,7 @@ let registros = [
 ];
 
 let registrosFiltrados = [];
+const selectedIds = new Set(); // seleção em massa
 
 // =================== Helpers ===================
 const $ = sel => document.getElementById(sel);
@@ -82,11 +83,19 @@ function createEstornoIndicator(estorno) {
   return s;
 }
 
+function escapeHtml(str = "") {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 // =================== Cálculo ===================
-// Regras:
 // - COLETADO: 8 - estorno_frete - (estorno_merc? valor_produto : 0), mínimo 0.
 // - CANCELADO: estorno_merc = 1 (não devolveu) => -(valor_produto + 8); estorno_merc = 0 => 0.
-// - A COLETAR: 0 (porque só paga quando coletado).
+// - A COLETAR: 0 (só paga quando coletado).
 function calcularValor(reg) {
   const status = reg.status_pedido;
   const produto = Number(reg.valor_produto || 0);
@@ -103,8 +112,7 @@ function calcularValor(reg) {
     return Number(v.toFixed(2));
   }
 
-  // A COLETAR
-  return 0;
+  return 0; // A COLETAR
 }
 
 // =================== Persistência local (array) ===================
@@ -136,6 +144,11 @@ const exportarBtn = $("exportarBtn");
 // Fechamento opcional
 const cancelarNaoEntreguesBtn = $("cancelarNaoEntreguesBtn");
 const diaFechamentoInput = $("diaFechamento");
+
+// Ações em massa
+const selectAll = $("selectAll");
+const pagarSelecionadosBtn = $("pagarSelecionadosBtn");
+const limparSelecaoBtn = $("limparSelecaoBtn");
 
 function initializeForm() {
   $("data").value = getTodayISO();
@@ -200,13 +213,12 @@ function aplicarFiltros() {
   if (fim) lista = lista.filter((r) => r.data <= fim);
   if (loja && loja !== "todas") lista = lista.filter((r) => r.loja === loja);
   registrosFiltrados = lista;
-}
 
-function updateTable() {
-  aplicarFiltros();
-  renderTable();
-  updateSummary();
-  updateRecordCount();
+  // higieniza seleção
+  const idsExistentes = new Set(registros.map(r => r.id));
+  for (const id of [...selectedIds]) {
+    if (!idsExistentes.has(id)) selectedIds.delete(id);
+  }
 }
 
 function renderTable() {
@@ -216,20 +228,25 @@ function renderTable() {
     const tr = document.createElement("tr");
     tr.className = "empty-state";
     tr.innerHTML = `
-      <td colspan="12">
+      <td colspan="13">
         <div class="empty-content">
           <div>Nenhum registro encontrado</div>
           <div class="empty-subtitle">Adicione um novo registro ou ajuste os filtros</div>
         </div>
       </td>`;
     tableBody.appendChild(tr);
+    syncHeaderCheckbox();
     return;
   }
 
   for (const r of registrosFiltrados) {
+    const checked = selectedIds.has(r.id) ? "checked" : "";
     const tr = document.createElement("tr");
     tr.className = "data-row";
     tr.innerHTML = `
+      <td class="text-center">
+        <input type="checkbox" class="row-check" data-id="${r.id}" ${checked}/>
+      </td>
       <td class="font-mono">${formatDate(r.data)}</td>
       <td>${r.loja}</td>
       <td class="font-mono">${r.pedido}</td>
@@ -240,20 +257,31 @@ function renderTable() {
       <td class="text-right font-mono" style="font-weight:700">${formatCurrency(r.valor_a_pagar)}</td>
       <td class="text-center"></td>
       <td class="text-center"></td>
-      <td title="${r.obs || ""}" style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.obs || "-"}</td>
+      <td class="obs-cell" title="${escapeHtml(r.obs || "")}" style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.obs || "-")}</td>
       <td class="text-center">
         <div class="actions" style="display:flex; gap:6px; justify-content:center;">
           <button class="btn btn-secondary" data-action="coletar" data-id="${r.id}">Coletar</button>
           <button class="btn btn-secondary" data-action="cancelar" data-id="${r.id}">Cancelar</button>
+
+          <!-- Botão LÁPIS (editar observação) -->
+          <button class="btn btn-secondary" data-action="obs-edit" data-id="${r.id}" title="Editar observação" style="padding:6px 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+          </button>
+
           <button class="btn btn-primary" data-action="pagar" data-id="${r.id}">Pagar</button>
         </div>
       </td>
     `;
-    tr.children[5].appendChild(createEstornoIndicator(r.estorno_merc));
-    tr.children[8].appendChild(createStatusBadge(r.status_pedido, "pedido"));
-    tr.children[9].appendChild(createStatusBadge(r.situacao, "situacao"));
+    tr.children[6].appendChild(createEstornoIndicator(r.estorno_merc)); // S/N
+    tr.children[9].appendChild(createStatusBadge(r.status_pedido, "pedido"));
+    tr.children[10].appendChild(createStatusBadge(r.situacao, "situacao"));
     tableBody.appendChild(tr);
   }
+
+  syncHeaderCheckbox();
 }
 
 function updateRecordCount() {
@@ -270,20 +298,17 @@ function updateSummary() {
   fechamento.style.display = "block";
 }
 
+function updateTable() {
+  aplicarFiltros();
+  renderTable();
+  updateSummary();
+  updateRecordCount();
+}
+
 // =================== Export CSV ===================
 function exportCSV() {
   const headers = [
-    "Data",
-    "Loja",
-    "Pedido",
-    "Nota",
-    "Val. Produto",
-    "Est. Merc",
-    "Est. Frete",
-    "Valor a Pagar",
-    "Status",
-    "Situação",
-    "Observação",
+    "Data","Loja","Pedido","Nota","Val. Produto","Est. Merc","Est. Frete","Valor a Pagar","Status","Situação","Observação",
   ];
   const csv = [
     headers.join(","),
@@ -313,10 +338,8 @@ function exportCSV() {
   a.click();
 }
 
-// =================== FUNÇÃO DE FRETE AO COLETAR ===================
-// Sempre que marcar como COLETADO, aplica frete de R$ 8,00 (sem estornos).
+// =================== Frete ao coletar ===================
 function freteAoColetar(id) {
-  // zera estornos e marca COLETADO para garantir os R$ 8
   const reg = updateRegistro(id, {
     status_pedido: "COLETADO",
     estorno_merc: 0,
@@ -324,6 +347,63 @@ function freteAoColetar(id) {
   });
   if (!reg) return;
   showToast("Atualizado", "Pedido COLETADO: frete de R$ 8,00 aplicado.");
+  updateTable();
+}
+
+// =================== Edição inline da Observação ===================
+function enterObsEdit(id) {
+  // acha a linha/célula
+  const rowBtn = tableBody.querySelector(`button[data-action="obs-edit"][data-id="${id}"]`);
+  if (!rowBtn) return;
+  const tr = rowBtn.closest("tr");
+  const cell = tr.querySelector(".obs-cell");
+  if (!cell) return;
+
+  // valor atual
+  const atual = (registros.find(r => r.id === id)?.obs || "").replace(/^-\s*$/, "");
+  const val = escapeHtml(atual);
+
+  // guarda conteúdo original para cancelar
+  cell.dataset.original = cell.innerHTML;
+
+  // editor inline
+  cell.innerHTML = `
+    <div class="obs-edit" style="display:flex; gap:6px; align-items:center;">
+      <input type="text" class="input obs-input" value="${val}" style="flex:1; min-width:180px; padding:6px 8px;"/>
+      <button class="btn btn-primary" data-action="obs-save" data-id="${id}" title="Salvar" style="padding:6px 8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20,6 9,17 4,12"/>
+        </svg>
+      </button>
+      <button class="btn btn-secondary" data-action="obs-cancel" data-id="${id}" title="Cancelar" style="padding:6px 8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  `;
+
+  // foco no input
+  const input = cell.querySelector(".obs-input");
+  input?.focus();
+  input?.setSelectionRange(input.value.length, input.value.length);
+}
+
+function saveObsInline(id) {
+  const rowBtn = tableBody.querySelector(`button[data-action="obs-save"][data-id="${id}"]`);
+  if (!rowBtn) return;
+  const tr = rowBtn.closest("tr");
+  const cell = tr.querySelector(".obs-cell");
+  const input = cell.querySelector(".obs-input");
+  const novo = (input?.value || "").trim();
+  updateRegistro(id, { obs: novo.length ? novo : "-" });
+  showToast("Observação", "Observação atualizada.");
+  updateTable();
+}
+
+function cancelObsInline(id) {
+  // apenas re-renderiza a tabela (ou restaura o original se quiser sem re-render)
   updateTable();
 }
 
@@ -336,7 +416,7 @@ function handleRowAction(e) {
   const action = btn.getAttribute("data-action");
 
   if (action === "coletar") {
-    freteAoColetar(id); // <<< usa a função de frete ao coletar
+    freteAoColetar(id);
     return;
   }
 
@@ -358,14 +438,71 @@ function handleRowAction(e) {
       });
       showToast("Cancelado", "Com devolução: sem pagamento de frete.");
     }
+    updateTable();
+    return;
   }
+
+  if (action === "obs-edit") { enterObsEdit(id); return; }
+  if (action === "obs-save") { saveObsInline(id); return; }
+  if (action === "obs-cancel") { cancelObsInline(id); return; }
 
   if (action === "pagar") {
     updateRegistro(id, { situacao: "PAGO" });
     showToast("Atualizado", "Registro marcado como PAGO.");
+    updateTable();
   }
+}
 
+// =================== Seleção em massa ===================
+function handleSelectAllChange(e) {
+  const check = e.target.checked;
+  for (const r of registrosFiltrados) {
+    if (check) selectedIds.add(r.id);
+    else selectedIds.delete(r.id);
+  }
+  renderTable();
+}
+
+function handleRowCheckboxChange(e) {
+  const box = e.target.closest("input.row-check[data-id]");
+  if (!box) return;
+  const id = Number(box.getAttribute("data-id"));
+  if (box.checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  syncHeaderCheckbox();
+}
+
+function syncHeaderCheckbox() {
+  if (!selectAll) return;
+  if (registrosFiltrados.length === 0) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+    return;
+  }
+  let selectedCount = 0;
+  for (const r of registrosFiltrados) if (selectedIds.has(r.id)) selectedCount++;
+  selectAll.checked = selectedCount === registrosFiltrados.length;
+  selectAll.indeterminate = selectedCount > 0 && selectedCount < registrosFiltrados.length;
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  renderTable();
+  showToast("Seleção", "Seleção limpa.");
+}
+
+function pagarSelecionados() {
+  if (selectedIds.size === 0) {
+    showToast("Seleção", "Nenhum registro selecionado.");
+    return;
+  }
+  let count = 0;
+  for (const id of selectedIds) {
+    const reg = updateRegistro(id, { situacao: "PAGO" });
+    if (reg) count++;
+  }
   updateTable();
+  showToast("Pago", `${count} registro(s) marcado(s) como PAGO.`);
 }
 
 // =================== Cancelar não entregues do dia ===================
@@ -405,11 +542,18 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeForm();
   updateTable();
 
-  form.addEventListener("submit", saveRecord);
-  limparBtn.addEventListener("click", clearForm);
-  atualizarBtn.addEventListener("click", updateTable);
-  exportarBtn.addEventListener("click", exportCSV);
-  $("tableBody").addEventListener("click", handleRowAction);
+  form?.addEventListener("submit", saveRecord);
+  limparBtn?.addEventListener("click", clearForm);
+
+  atualizarBtn?.addEventListener("click", updateTable);
+  exportarBtn?.addEventListener("click", exportCSV);
+
+  $("tableBody")?.addEventListener("click", handleRowAction);
+
+  selectAll?.addEventListener("change", handleSelectAllChange);
+  $("tableBody")?.addEventListener("change", handleRowCheckboxChange);
+  limparSelecaoBtn?.addEventListener("click", clearSelection);
+  pagarSelecionadosBtn?.addEventListener("click", pagarSelecionados);
 
   if (cancelarNaoEntreguesBtn) {
     cancelarNaoEntreguesBtn.addEventListener("click", () => {

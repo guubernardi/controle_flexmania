@@ -334,18 +334,20 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 0.5rem 0;
-    /* Evita barra horizontal visível e mantém crescimento vertical */
-    overflow-x: hidden;
+    /* Permite scroll horizontal dentro do card de registros */
+    overflow-x: auto;
     overflow-y: visible;
     position: relative; /* garante que sombras/transforms fiquem contidas */
+    -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
     width: 100%;
     border-collapse: collapse;
     max-width: 100%;
-    /* permite que a tabela aumente de altura em vez de criar scroll */
+    /* permite scroll horizontal: tabela tem largura mínima para acomodar colunas */
     table-layout: fixed; /* evita que células largas estiquem toda a tabela */
+    min-width: 1100px; /* ajuste para garantir overflow em telas menores */
 }
 
 .data-table th,
@@ -356,7 +358,7 @@ body {
     font-size: 0.875rem;
     vertical-align: middle; /* Centraliza verticalmente conteúdo, inclusive botões */
     overflow: hidden; /* evita que conteúdo estoure a célula */
-    text-overflow: ellipsis;
+    text-overflow: none;
     white-space: nowrap;
 }
 
@@ -424,7 +426,7 @@ body {
     align-items: center;
     border-radius: 9999px;
     border: 1px solid;
-    padding: 0.125rem 0.625rem;
+    padding: 0.125rem 0.325rem;
     font-size: 0.75rem;
     font-weight: 500;
     transition: colors 0.2s;
