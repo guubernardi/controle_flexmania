@@ -6,7 +6,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f9fafb;
+  background-color: #EFF6FF;
   color: #111827;
   line-height: 1.6;
 }
@@ -210,6 +210,12 @@ textarea {
   left: 190px;
 }
 
+#btnRelatorioGPT:hover {
+  background-color: #059669; 
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+
 /* Etiquetas (badges) */
 .badge {
   padding: 0.25rem 0.5rem;
@@ -269,33 +275,57 @@ textarea {
 }
 
 .summary-card {
-  text-align: center;
-  padding: 1rem;
-  border-radius: 0.5rem;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.summary-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
 }
 
 .summary-card.total {
-  background: #f3f4f6;
+    background: #f3f4f6;
 }
+.summary-card.total:hover {
+    background: #e5e7eb;
+}
+
 .summary-card.success {
-  background: #f0fdf4;
+    background: #e7faed;
 }
+.summary-card.success:hover {
+    background: #d1fae5;
+    color: #14532d;
+}
+
 .summary-card.warning {
-  background: #fffbeb;
+    background: #fffbeb;
 }
+.summary-card.warning:hover {
+    background: #fef3c7;
+    color: #92400e;
+}
+
 .summary-card.primary {
-  background: #eff6ff;
+    background: #eff6ff;
+}
+.summary-card.primary:hover {
+    background: #dbeafe;
+    color: #2563eb;
 }
 
 .summary-number {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 0.25rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
 }
 
 .summary-label {
-  font-size: 0.875rem;
-  color: #6b7280;
+    font-size: 0.875rem;
+    color: #6b7280;
 }
 
 /* Tabela */
